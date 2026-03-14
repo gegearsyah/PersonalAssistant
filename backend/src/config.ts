@@ -20,4 +20,30 @@ export const config = {
   googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? '',
   /** Timezone for calendar events (e.g. Asia/Jakarta). Events are created in this timezone so "23:55" stays 23:55 for the user. */
   calendarTimezone: process.env.CALENDAR_TIMEZONE ?? 'Asia/Jakarta',
+  /** Optional JSON array of external MCP servers. Each: { "id": "brave", "command": "npx", "args": ["-y", "@modelcontextprotocol/server-brave-search"], "env": { "BRAVE_API_KEY": "..." } }. */
+  mcpServersJson: process.env.MCP_SERVERS_JSON ?? '',
 } as const;
+
+export type McpServerConfig = {
+  id: string;
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+};
+
+export function getMcpServersConfig(): McpServerConfig[] {
+  const raw = config.mcpServersJson.trim();
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw) as unknown[];
+    return (arr || []).filter(
+      (s): s is McpServerConfig =>
+        typeof s === 'object' &&
+        s !== null &&
+        typeof (s as McpServerConfig).id === 'string' &&
+        typeof (s as McpServerConfig).command === 'string'
+    );
+  } catch {
+    return [];
+  }
+}

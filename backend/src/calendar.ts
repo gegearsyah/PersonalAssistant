@@ -1,7 +1,10 @@
 import { google } from 'googleapis';
 import { config } from './config.js';
 
-const SCOPES = ['https://www.googleapis.com/auth/calendar'];
+const SCOPES = [
+  'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/documents',
+];
 const DEFAULT_DURATION_MS = 60 * 60 * 1000; // 1 hour if end <= start
 
 function getOAuth2Client() {

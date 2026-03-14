@@ -1056,3 +1056,97 @@ body {
   color: #b71c1c;
   background: #ffebee;
 }
+
+/* MCP server browser (Connectors panel) */
+.mcp-section { margin-top: 20px; }
+.mcp-search-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.mcp-search-row input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 13px;
+}
+.mcp-search-row button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+.mcp-search-row button:hover { background: #1557b0; }
+.mcp-results {
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fafafa;
+}
+.mcp-result-item {
+  padding: 10px 12px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.mcp-result-item:last-child { border-bottom: none; }
+.mcp-result-info { flex: 1; min-width: 0; }
+.mcp-result-info strong { display: block; font-size: 13px; }
+.mcp-result-info span { font-size: 12px; color: #666; display: block; margin-top: 2px; }
+.mcp-result-item button {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid #1a73e8;
+  background: #fff;
+  color: #1a73e8;
+  cursor: pointer;
+}
+.mcp-result-item button:hover { background: #e8f0fe; }
+.mcp-selected-section.hidden { display: none; }
+.mcp-selected-title { font-size: 12px; margin: 0 0 8px; color: #666; }
+.mcp-selected-list { margin-bottom: 10px; }
+.mcp-selected-item {
+  padding: 8px 10px;
+  background: #f0f9f0;
+  border: 1px solid #c8e6c9;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mcp-selected-item .mcp-selected-id { font-weight: 500; }
+.mcp-selected-item button {
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 1px solid #c5221f;
+  color: #c5221f;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.mcp-selected-item button:hover { background: #fef0ef; }
+.mcp-copy-row { margin-top: 8px; }
+.mcp-copy-row button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #1a73e8;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+.mcp-copy-row button:hover { background: #1557b0; }
+.connectors-hint a { color: #1a73e8; }
+.connectors-hint code { font-size: 11px; background: #eee; padding: 1px 4px; border-radius: 3px; }

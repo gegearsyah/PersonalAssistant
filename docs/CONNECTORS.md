@@ -1,4 +1,39 @@
-﻿# Connectors & tools (Google, Notion, etc.)
+# Connectors & tools (Google, Notion, etc.)
+
+In this project the backend implements **its own** Google tools (Calendar, Docs) and requests only the OAuth scopes those APIs need. You can instead connect to **external** Google MCP servers (they do exist); see the note below.
+
+---
+
+## “Why can’t we have connectors like Claude? Easy and one-click?”
+
+**Claude does build their own.** The “Connect to Google Drive / Notion” you see on Claude.ai or in the Claude app is **Anthropic’s product**. Their backend does OAuth, stores tokens, and calls Google/Notion (or partner APIs) themselves. It’s not a generic API feature — it’s part of their app. So yes: **they make their own connectors**, same idea as us, just at product scale with a full team.
+
+**We’re doing the same on a smaller scale.** We built our own Google (Calendar, Docs) and one “Connect Google” in the extension. For more tools (Brave Search, NotebookLM, Todo, etc.) we use external MCP servers and a single config string (`MCP_SERVERS_JSON`). The “hard” bit is that today you have to edit that JSON or `.env` by hand.
+
+**Making it easier (Claude-style):** We could add an **optional “Connector setup”** in the extension or a small admin page that:
+- Lists known integrations (e.g. Brave Search, NotebookLM, Todo, Time) with a toggle and one field each (API key, config path, etc.),
+- Builds the correct `MCP_SERVERS_JSON` for you and either shows it to **copy into `.env`** or, if the backend supports it, **saves it** so you don’t touch JSON at all.
+
+So: **Claude also makes their own connectors**; we can get close to “easy and one-click” by adding a simple UI that generates (or persists) the MCP config instead of asking users to edit JSON. The doc [EXTERNAL_MCP_FOR_STUDENTS.md](EXTERNAL_MCP_FOR_STUDENTS.md) already has the building blocks; a future step is that wizard or settings screen.
+
+---
+
+## Why we request specific scopes (and is there an external Google MCP?)
+
+**Why scopes are “limited” here**  
+The backend doesn’t connect to an external MCP server that provides Google. It **implements the tools itself** and calls Google’s APIs (Calendar, Docs) directly. So we only request the OAuth scopes required for the APIs we actually use. We’re not “limiting” arbitrarily; we only ask for what our code needs.
+
+**Is it possible to use an external Google MCP? Yes.**  
+External Google MCP servers **do exist**. For example:
+
+- [Google Drive MCP](https://github.com/modelcontextprotocol/servers/tree/main/src/google-drive) (official MCP servers repo)
+- Other community or hosted MCPs that expose Google (Drive, Gmail, Calendar, etc.)
+
+If we **connected** to one of those (e.g. run it as a separate process, or call a hosted MCP endpoint), we would get whatever tools that server exposes (list_tools / call_tool). That server would have its **own** credential setup (env vars, OAuth, or config); we wouldn’t be the ones defining scopes in our app.
+
+So: **it is possible** to use an external Google MCP. In this repo we chose to **build our own** Google tools and request the scopes we need. If you prefer “connect to MCP and get its tool list,” you’d integrate the backend with an external MCP server (and use that server’s setup).
+
+---
 
 ## Why don’t I see “connectors” like in Claude.ai?
 
@@ -10,8 +45,8 @@ This extension talks to **your backend**, which calls the **API** (Claude, OpenA
 
 In this project, external integrations are provided by **MCP (Model Context Protocol) servers**. Each MCP server can expose **tools** (e.g. “search Notion”, “list Google Drive files”). The model then decides when to call those tools during the conversation.
 
-- **Right now:** The backend uses a **demo** MCP client with two fake tools: `echo` and `add`. So you’ll see “Tools: Demo (echo, add)” in the popup. The model can use them, but they’re not real Google/Notion connectors.
-- **To get real connectors:** You (or your backend) need to run or connect to **real MCP servers** that implement Google, Notion, etc., and configure the backend to use them.
+- **In this repo:** The backend implements an MCP-style client with built-in tools: **Google** (Calendar, Docs) using your OAuth connection, plus demo tools `echo` and `add`. So we request only the scopes we need (calendar, documents). No external MCP server is used for Google.
+- **Alternative:** You can instead connect the backend to **external MCP servers** (e.g. official Google Drive MCP, Notion MCP). Those servers expose their own tool list and have their own credential setup.
 
 ## How to add real connectors (e.g. Notion, Google)
 

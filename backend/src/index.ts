@@ -11,6 +11,7 @@ import { resolveAuth } from './auth.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerConnectorRoutes } from './routes/connectors.js';
 import { registerGoogleAuthRoutes } from './routes/google-auth.js';
+import { registerMcpRegistryRoutes } from './routes/mcp-registry.js';
 import type { ClientMessage, ServerMessage } from './types.js';
 
 function send(socket: { send: (data: string) => void }, msg: ServerMessage): void {
@@ -34,6 +35,7 @@ async function main() {
   await registerAuthRoutes(fastify);
   await registerConnectorRoutes(fastify);
   await registerGoogleAuthRoutes(fastify);
+  await registerMcpRegistryRoutes(fastify);
 
   fastify.get('/health', async (_req, reply) => {
     return reply.send({ status: 'ok' });

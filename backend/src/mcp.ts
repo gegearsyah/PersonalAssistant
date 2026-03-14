@@ -1,10 +1,13 @@
 /**
  * MCP client: list tools and call tools.
- * When userId is provided and user has Google connected, exposes Calendar (and later Gmail/Drive) tools.
+ * Built-in: Google (Calendar, Docs), echo, add.
+ * External: from MCP_SERVERS_JSON (Brave Search, Time, Todo, etc.) — see docs/EXTERNAL_MCP_FOR_STUDENTS.md.
  */
 
 import { getConnector } from './store/connectors.js';
 import { createCalendarEvent, listCalendarEvents } from './calendar.js';
+import { createGoogleDoc } from './google-docs.js';
+import { listExternalTools, callExternalTool, hasExternalTool } from './external-mcp.js';
 
 export interface McpTool {
   name: string;
@@ -42,6 +45,18 @@ const CALENDAR_TOOLS: McpTool[] = [
       },
     },
   },
+  {
+    name: 'create_google_doc',
+    description: 'Create a new Google Doc with the given title and body content. Use this when the user asks to summarize a page and put it in a doc, or to create a document with specific content. The content is the full body text (e.g. a summary).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Document title (e.g. "Research Summary")' },
+        content: { type: 'string', description: 'Full body text to put in the document' },
+      },
+      required: ['title', 'content'],
+    },
+  },
 ];
 
 const MOCK_TOOLS: McpTool[] = [
@@ -58,6 +73,14 @@ export class UserMcpClient implements McpClientInterface {
   async listTools(): Promise<McpTool[]> {
     const tools = [...MOCK_TOOLS];
     if (this.calendarCredentials) tools.push(...CALENDAR_TOOLS);
+    const builtInNames = new Set(tools.map((t) => t.name));
+    const external = await listExternalTools(this.userId);
+    for (const t of external) {
+      if (!builtInNames.has(t.name)) {
+        tools.push(t);
+        builtInNames.add(t.name);
+      }
+    }
     return tools;
   }
 
@@ -87,7 +110,21 @@ export class UserMcpClient implements McpClientInterface {
       }
     }
 
-    return `Tool "${name}" is not available. Connect Google in Connectors to use Calendar and other Google services.`;
+    if (name === 'create_google_doc' && this.calendarCredentials) {
+      const title = String(args.title ?? '').trim();
+      const content = String(args.content ?? '').trim();
+      if (!title || !content) return 'Error: title and content are required for create_google_doc.';
+      try {
+        return await createGoogleDoc(this.calendarCredentials, title, content);
+      } catch (e) {
+        return `Error creating document: ${e instanceof Error ? e.message : String(e)}`;
+      }
+    }
+
+    const externalHas = await hasExternalTool(this.userId, name);
+    if (externalHas) return callExternalTool(this.userId, name, args);
+
+    return `Tool "${name}" is not available. Connect Google in Connectors for Calendar/Docs, or add external MCP servers via MCP_SERVERS_JSON.`;
   }
 }
 
