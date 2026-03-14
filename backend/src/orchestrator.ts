@@ -8,6 +8,10 @@ import { getAdapter, DEFAULT_MODELS, type LLMOptions, type UnifiedTool } from '.
 
 export let chatHistory: unknown[] = [];
 
+export function clearChatHistory(): void {
+  chatHistory = [];
+}
+
 function buildSystemPrompt(context?: ContextPayload, toolSummary = ''): string {
   const base = `You are a helpful personal assistant for students. You have access to the user's browser context (open tabs as markdown) when provided.
 

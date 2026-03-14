@@ -17,7 +17,7 @@ from store.users import find_user_by_id, create_user, verify_user
 from store.connectors import list_connectors, set_connector, remove_connector, CONNECTOR_DEFINITIONS, SERVICES
 from store.mcp_servers import get_user_mcp_servers, set_user_mcp_servers, get_mcp_servers_config_for_user
 from mcp import create_mcp_client
-from orchestrator import run_chat_stream
+from orchestrator import run_chat_stream, clear_chat_history
 from llm import get_adapter, DEFAULT_MODELS
 from google_calendar import get_auth_url
 
@@ -273,6 +273,17 @@ async def chat_sse_stream(request: Request, body: ChatBody):
 @app.post("/v1/chat")
 async def v1_chat(request: Request, body: ChatBody):
     return StreamingResponse(chat_sse_stream(request, body), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "Connection": "keep-alive"})
+
+
+# ----- Chat history management -----
+@app.post("/v1/clear-chat")
+async def v1_clear_chat(request: Request):
+    # Require valid auth (same as /users/me)
+    _, user = await resolve_auth(request)
+    if not user:
+        raise HTTPException(401, detail={"error": "unauthorized", "message": "Sign in required"})
+    clear_chat_history()
+    return {"ok": True}
 
 
 # ----- WebSocket -----

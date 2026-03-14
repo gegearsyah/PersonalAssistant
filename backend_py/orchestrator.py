@@ -1,5 +1,10 @@
 from config import CALENDAR_TIMEZONE, MAX_TOOL_TURNS
 
+# Simple in-memory chat history shared per backend process.
+# Mirrors the behavior of the Node backend so that multiple turns
+# in the extension share context, and can be cleared explicitly.
+_CHAT_HISTORY: list[dict] = []
+
 def build_system_prompt(context=None):
     base = f"""You are a helpful personal assistant for students. You have access to the user's browser context (open tabs as markdown) when provided.
 
@@ -47,6 +52,11 @@ def _build_tool_summary(tools):
     return f"\n\n## Available tools (use when relevant)\n{names}."
 
 
+def clear_chat_history() -> None:
+    """Reset in-memory chat history."""
+    _CHAT_HISTORY.clear()
+
+
 def run_chat_stream(message, context, allow_tools, mcp_client, send, llm_options):
     """Sync: run in thread. send(m) is sync and should e.g. queue.put_nowait(m)."""
     from llm import get_adapter, DEFAULT_MODELS
@@ -60,7 +70,8 @@ def run_chat_stream(message, context, allow_tools, mcp_client, send, llm_options
         send({"type": "error", "code": "bad_request", "message": f"No API key provided. Set your {provider} API key in extension settings."})
         return
     adapter = get_adapter(provider)
-    messages = [{"role": "user", "content": message}]
+    # Start from existing history so that the model can see prior turns.
+    messages = list(_CHAT_HISTORY) + [{"role": "user", "content": message}]
     total_in = total_out = 0
     turns_left = MAX_TOOL_TURNS
     while turns_left > 0:
@@ -70,6 +81,9 @@ def run_chat_stream(message, context, allow_tools, mcp_client, send, llm_options
             total_in += result["usage"].get("input_tokens", 0)
             total_out += result["usage"].get("output_tokens", 0)
         if not result.get("toolUses"):
+            # No more tool calls; conversation turn is complete. Persist history.
+            _CHAT_HISTORY.clear()
+            _CHAT_HISTORY.extend(messages)
             send({"type": "done", "usage": {"input_tokens": total_in, "output_tokens": total_out}})
             return
         messages.append(result["assistantMessage"])
@@ -83,4 +97,7 @@ def run_chat_stream(message, context, allow_tools, mcp_client, send, llm_options
             results.append(content)
         messages.extend(build_tool_result_messages(provider, result["toolUses"], results))
         turns_left -= 1
+    # Tool turn limit reached; persist what we have.
+    _CHAT_HISTORY.clear()
+    _CHAT_HISTORY.extend(messages)
     send({"type": "done", "usage": {"input_tokens": total_in, "output_tokens": total_out}})

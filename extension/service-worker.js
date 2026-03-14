@@ -1,5 +1,5 @@
 const MAX_TABS = 20;
-const MAX_CHARS_PER_TAB = 12000;
+const MAX_CHARS_PER_TAB = 30000;
 const MAX_TOTAL_CHARS = 100000;
 
 /**

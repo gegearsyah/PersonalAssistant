@@ -32655,6 +32655,9 @@
         const DEFAULT_MODELS = { claude: "claude-sonnet-4-20250514", openai: "gpt-4o-mini", groq: "llama-3.3-70b-versatile" };
         const CHAT_HISTORY_KEY = "chatHistory";
         const MAX_CHAT_ITEMS = 200;
+        const WORKING_STATUSES = ["Mewing", "Aura farming", "Doomscrolling", "Cooking", "claudemaxxing", "Fighting Triple T"];
+        let workingStatusTimer = null;
+        let workingStatusBubble = null;
         let settingsOpenedFromAuth = false;
         const STUDENT_MCP_PRESETS = [
           { id: "google-workspace", name: "Google Workspace", description: "Community MCP \xB7 Calendar, Docs, Gmail, Drive. Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET in backend .env.", config: { id: "google-workspace", command: "npx", args: ["-y", "@alanxchen/google-workspace-mcp@1.0.2"], env: {} } },
@@ -32764,6 +32767,52 @@
           statusEl.textContent = text5;
           statusEl.classList.toggle("error", isError);
         }
+        function ensureBubbleStatusLabel(bubble) {
+          if (!bubble || !bubble.parentElement) return null;
+          const body = bubble.parentElement;
+          let labelEl = body.querySelector(".message-status");
+          if (!labelEl) {
+            labelEl = document.createElement("div");
+            labelEl.className = "message-status";
+            body.insertBefore(labelEl, bubble);
+          }
+          return labelEl;
+        }
+        function startWorkingStatus(bubble) {
+          if (!WORKING_STATUSES.length) return;
+          if (workingStatusTimer) {
+            clearInterval(workingStatusTimer);
+            workingStatusTimer = null;
+          }
+          workingStatusBubble = bubble || workingStatusBubble;
+          const tick = () => {
+            if (!workingStatusBubble) return;
+            const labelEl = ensureBubbleStatusLabel(workingStatusBubble);
+            if (!labelEl) return;
+            const idx = Math.floor(Math.random() * WORKING_STATUSES.length);
+            const text6 = WORKING_STATUSES[idx];
+            labelEl.textContent = text6;
+          };
+          tick();
+          workingStatusTimer = setInterval(tick, 1500);
+        }
+        function stopWorkingStatus(message, isError = false) {
+          if (workingStatusTimer) {
+            clearInterval(workingStatusTimer);
+            workingStatusTimer = null;
+          }
+          if (typeof message === "string") {
+            setStatus(message, isError);
+          }
+          if (workingStatusBubble && workingStatusBubble.parentElement) {
+            const body = workingStatusBubble.parentElement;
+            const labelEl = body.querySelector(".message-status");
+            if (labelEl) {
+              labelEl.textContent = "";
+            }
+          }
+          workingStatusBubble = null;
+        }
         function appendMessage(role, content3, isStreaming = false) {
           const wrap3 = document.createElement("div");
           wrap3.className = `message ${role}`;
@@ -32795,7 +32844,7 @@
           inner.appendChild(body);
           wrap3.appendChild(inner);
           messagesEl.appendChild(wrap3);
-          messagesEl.scrollTop = messagesEl.scrollHeight;
+          messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: "smooth" });
           return bubble;
         }
         function appendToolMessage(toolName, content3) {
@@ -32818,7 +32867,7 @@ ${content3}`;
           inner.appendChild(body);
           wrap3.appendChild(inner);
           messagesEl.appendChild(wrap3);
-          messagesEl.scrollTop = messagesEl.scrollHeight;
+          messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: "smooth" });
         }
         function renderHistoryItem(item) {
           if (item.role === "user") {
@@ -32831,7 +32880,7 @@ ${content3}`;
           const history = await getStoredChatHistory();
           messagesEl.innerHTML = "";
           history.forEach(renderHistoryItem);
-          messagesEl.scrollTop = messagesEl.scrollHeight;
+          messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: "smooth" });
         }
         async function persistMessage(role, content3) {
           const history = await getStoredChatHistory();
@@ -33207,7 +33256,20 @@ ${content3}`;
         clearChatBtn.addEventListener("click", async () => {
           await setStoredChatHistory([]);
           messagesEl.innerHTML = "";
-          setStatus("Chat cleared.");
+          try {
+            const s = await getStoredSettings();
+            const token = getAuthToken(s);
+            if (s.backendUrl && token) {
+              await fetch(`${s.backendUrl}/v1/clear-chat`, {
+                method: "POST",
+                headers: {
+                  Authorization: "Bearer " + token
+                }
+              });
+            }
+          } catch {
+          }
+          stopWorkingStatus("Chat cleared.");
         });
         sendBtn.addEventListener("click", sendMessage);
         inputEl.addEventListener("keydown", (e) => {
@@ -33272,7 +33334,8 @@ ${content3}`;
             try {
               const msg = JSON.parse(ev.data);
               if (msg.type === "auth_ok") {
-                setStatus("Sending...");
+                currentBubble = appendMessage("assistant", "", true);
+                startWorkingStatus(currentBubble);
                 ws.send(JSON.stringify({
                   type: "chat",
                   id: crypto.randomUUID(),
@@ -33283,11 +33346,10 @@ ${content3}`;
                   api_key: s.llmApiKey,
                   model: s.llmModel
                 }));
-                currentBubble = appendMessage("assistant", "", true);
                 return;
               }
               if (msg.type === "error") {
-                setStatus(msg.message || "Error", true);
+                stopWorkingStatus(msg.message || "Error", true);
                 if (currentBubble) {
                   currentBubble._fullText = (currentBubble._fullText || "") + "\n[Error: " + msg.message + "]";
                   (_a2 = currentBubble._reactRoot) == null ? void 0 : _a2.render(import_react2.default.createElement(Markdown, null, currentBubble._fullText));
@@ -33297,21 +33359,13 @@ ${content3}`;
               if (msg.type === "text_delta" && currentBubble) {
                 currentBubble._fullText = (currentBubble._fullText || "") + msg.delta;
                 (_b = currentBubble._reactRoot) == null ? void 0 : _b.render(import_react2.default.createElement(Markdown, null, currentBubble._fullText));
-                messagesEl.scrollTop = messagesEl.scrollHeight;
+                messagesEl.scrollTo({ top: messagesEl.scrollHeight, behavior: "smooth" });
               }
               if (msg.type === "tool_use") {
-                if (currentBubble) {
-                  currentBubble._fullText = (currentBubble._fullText || "") + `
-[Tool: ${msg.name}]`;
-                  (_c = currentBubble._reactRoot) == null ? void 0 : _c.render(import_react2.default.createElement(Markdown, null, currentBubble._fullText));
-                }
+                return;
               }
               if (msg.type === "tool_result") {
-                appendToolMessage(msg.tool_use_id, msg.content);
-                if (currentBubble) {
-                  currentBubble._fullText = (currentBubble._fullText || "") + "\n[Tool result received]";
-                  (_d = currentBubble._reactRoot) == null ? void 0 : _d.render(import_react2.default.createElement(Markdown, null, currentBubble._fullText));
-                }
+                return;
               }
               if (msg.type === "done") {
                 if (currentBubble) {
@@ -33320,16 +33374,18 @@ ${content3}`;
                   currentBubble.dataset.streaming = "";
                   persistMessage("assistant", finalText);
                 }
-                setStatus(msg.usage ? `Done. Tokens: ${msg.usage.input_tokens + msg.usage.output_tokens}` : "Done.");
+                stopWorkingStatus(msg.usage ? `Done. Tokens: ${msg.usage.input_tokens + msg.usage.output_tokens}` : "Done.");
               }
             } catch (e) {
-              setStatus("Invalid message from server", true);
+              stopWorkingStatus("Invalid message from server", true);
             }
           };
-          ws.onerror = () => setStatus("WebSocket error.", true);
+          ws.onerror = () => stopWorkingStatus("WebSocket error.", true);
           ws.onclose = () => {
             sendBtn.disabled = false;
-            if (statusEl.textContent === "Sending...") setStatus("Connection closed.");
+            if (workingStatusTimer) {
+              stopWorkingStatus("Connection closed.");
+            }
           };
         }
         getStoredSettings().then((s) => {

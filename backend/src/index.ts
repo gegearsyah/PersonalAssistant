@@ -5,7 +5,7 @@ import websocket from '@fastify/websocket';
 import { config } from './config.js';
 import { checkRateLimit } from './rateLimit.js';
 import { createMcpClient } from './mcp.js';
-import { runChatStream } from './orchestrator.js';
+import { runChatStream, clearChatHistory } from './orchestrator.js';
 import { DEFAULT_MODELS, type LLMOptions } from './llm/index.js';
 import { resolveAuth } from './auth.js';
 import { registerAuthRoutes } from './routes/auth.js';
@@ -39,6 +39,15 @@ async function main() {
 
   fastify.get('/health', async (_req, reply) => {
     return reply.send({ status: 'ok' });
+  });
+
+  fastify.post('/v1/clear-chat', async (req, reply) => {
+    const auth = await resolveAuth(req, reply);
+    if (!auth.token) {
+      return reply.status(401).send({ error: 'unauthorized', message: 'Sign in or provide a valid API key' });
+    }
+    clearChatHistory();
+    return reply.send({ ok: true });
   });
 
   fastify.get('/users/me', async (req, reply) => {
