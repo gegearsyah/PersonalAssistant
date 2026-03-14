@@ -2,9 +2,25 @@
   const DEFAULT_BACKEND = 'http://localhost:3000';
 
   const authView = document.getElementById('auth-view');
+  const mainFlow = document.getElementById('main-flow');
+  const headerChat = document.getElementById('header-chat');
+  const headerSettings = document.getElementById('header-settings');
+  const headerConnectors = document.getElementById('header-connectors');
+  const pageChat = document.getElementById('page-chat');
+  const pageSettings = document.getElementById('page-settings');
+  const pageConnectors = document.getElementById('page-connectors');
+  const backFromSettings = document.getElementById('back-from-settings');
+  const backFromConnectors = document.getElementById('back-from-connectors');
+  const authOpenSettings = document.getElementById('auth-open-settings');
   const chatView = document.getElementById('chat-view');
   const userLabel = document.getElementById('user-label');
   const connectorsBtn = document.getElementById('connectors-btn');
+  const connectorsCol = document.querySelector('.composer-col-connectors');
+
+  function syncConnectorsColumn() {
+    if (!connectorsCol) return;
+    connectorsCol.classList.toggle('composer-col-connectors--empty', connectorsBtn.classList.contains('hidden'));
+  }
   const logoutBtn = document.getElementById('logout-btn');
   const messagesEl = document.getElementById('messages');
   const inputEl = document.getElementById('input');
@@ -12,17 +28,13 @@
   const includeContextEl = document.getElementById('include-context');
   const statusEl = document.getElementById('status');
   const settingsBtn = document.getElementById('settings-btn');
-  const settingsPanel = document.getElementById('settings-panel');
   const backendUrlEl = document.getElementById('backend-url');
   const apiKeyEl = document.getElementById('api-key');
   const llmProviderEl = document.getElementById('llm-provider');
   const llmApiKeyEl = document.getElementById('llm-api-key');
   const llmModelEl = document.getElementById('llm-model');
   const saveSettingsBtn = document.getElementById('save-settings');
-  const closeSettingsBtn = document.getElementById('close-settings');
-  const connectorsPanel = document.getElementById('connectors-panel');
   const connectorsList = document.getElementById('connectors-list');
-  const closeConnectorsBtn = document.getElementById('close-connectors');
   const authBackendUrl = document.getElementById('auth-backend-url');
   const authEmail = document.getElementById('auth-email');
   const authPassword = document.getElementById('auth-password');
@@ -40,6 +52,45 @@
   const DEFAULT_MODELS = { claude: 'claude-sonnet-4-20250514', openai: 'gpt-4o-mini', groq: 'llama-3.3-70b-versatile' };
   const CHAT_HISTORY_KEY = 'chatHistory';
   const MAX_CHAT_ITEMS = 200;
+  let settingsOpenedFromAuth = false;
+
+  function showChatPage() {
+    headerChat.classList.remove('hidden');
+    headerSettings.classList.add('hidden');
+    headerConnectors.classList.add('hidden');
+    pageChat.classList.remove('hidden');
+    pageSettings.classList.add('hidden');
+    pageConnectors.classList.add('hidden');
+    settingsOpenedFromAuth = false;
+  }
+
+  async function showSettingsPage(fromAuth) {
+    settingsOpenedFromAuth = !!fromAuth;
+    const s = await getStoredSettings();
+    backendUrlEl.value = s.backendUrl;
+    apiKeyEl.value = s.apiKey;
+    llmProviderEl.value = s.llmProvider;
+    llmApiKeyEl.value = s.llmApiKey;
+    llmModelEl.value = s.llmModel;
+    headerChat.classList.add('hidden');
+    headerConnectors.classList.add('hidden');
+    headerSettings.classList.remove('hidden');
+    pageChat.classList.add('hidden');
+    pageConnectors.classList.add('hidden');
+    pageSettings.classList.remove('hidden');
+    mainFlow.classList.remove('hidden');
+    authView.classList.add('hidden');
+  }
+
+  function showConnectorsPage() {
+    headerChat.classList.add('hidden');
+    headerSettings.classList.add('hidden');
+    headerConnectors.classList.remove('hidden');
+    pageChat.classList.add('hidden');
+    pageSettings.classList.add('hidden');
+    pageConnectors.classList.remove('hidden');
+    loadConnectors();
+  }
 
   async function getStoredChatHistory() {
     const out = await chrome.storage.local.get(CHAT_HISTORY_KEY);
@@ -60,6 +111,14 @@
   function appendMessage(role, content, isStreaming = false) {
     const wrap = document.createElement('div');
     wrap.className = `message ${role}`;
+    const inner = document.createElement('div');
+    inner.className = 'message-inner';
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.setAttribute('aria-hidden', 'true');
+    avatar.textContent = role === 'user' ? 'U' : 'A';
+    const body = document.createElement('div');
+    body.className = 'message-body';
     const roleLabel = document.createElement('div');
     roleLabel.className = 'role';
     roleLabel.textContent = role === 'user' ? 'You' : 'Assistant';
@@ -67,8 +126,11 @@
     bubble.className = 'bubble';
     bubble.textContent = content;
     if (isStreaming) wrap.dataset.streaming = '1';
-    wrap.appendChild(roleLabel);
-    wrap.appendChild(bubble);
+    body.appendChild(roleLabel);
+    body.appendChild(bubble);
+    inner.appendChild(avatar);
+    inner.appendChild(body);
+    wrap.appendChild(inner);
     messagesEl.appendChild(wrap);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return bubble;
@@ -77,10 +139,21 @@
   function appendToolMessage(toolName, content) {
     const wrap = document.createElement('div');
     wrap.className = 'message tool';
+    const inner = document.createElement('div');
+    inner.className = 'message-inner';
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.setAttribute('aria-hidden', 'true');
+    avatar.textContent = '⚡';
+    const body = document.createElement('div');
+    body.className = 'message-body';
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
     bubble.textContent = `Tool: ${toolName}\n${content}`;
-    wrap.appendChild(bubble);
+    body.appendChild(bubble);
+    inner.appendChild(avatar);
+    inner.appendChild(body);
+    wrap.appendChild(inner);
     messagesEl.appendChild(wrap);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
@@ -138,23 +211,27 @@
     const hasAuth = !!(s.jwt || s.apiKey);
     if (!hasAuth) {
       authView.classList.remove('hidden');
-      chatView.classList.add('hidden');
+      mainFlow.classList.add('hidden');
       userLabel.textContent = '';
       connectorsBtn.classList.add('hidden');
+      syncConnectorsColumn();
       logoutBtn.classList.add('hidden');
       authBackendUrl.value = s.backendUrl;
       return;
     }
     authView.classList.add('hidden');
-    chatView.classList.remove('hidden');
+    mainFlow.classList.remove('hidden');
+    showChatPage();
     loadChatHistory();
     if (s.user) {
       userLabel.textContent = s.user.email;
       connectorsBtn.classList.remove('hidden');
+      syncConnectorsColumn();
       logoutBtn.classList.remove('hidden');
     } else {
       userLabel.textContent = 'Using API key';
       connectorsBtn.classList.add('hidden');
+      syncConnectorsColumn();
       logoutBtn.classList.add('hidden');
     }
   }
@@ -227,11 +304,20 @@
     applyAuthState();
   });
 
-  connectorsBtn.addEventListener('click', () => {
-    connectorsPanel.classList.remove('hidden');
-    loadConnectors();
+  connectorsBtn.addEventListener('click', () => showConnectorsPage());
+  backFromConnectors.addEventListener('click', () => showChatPage());
+  authOpenSettings.addEventListener('click', () => showSettingsPage(true));
+  backFromSettings.addEventListener('click', async () => {
+    const s = await getStoredSettings();
+    const hasAuth = !!(s.jwt || s.apiKey);
+    if (settingsOpenedFromAuth && !hasAuth) {
+      authView.classList.remove('hidden');
+      mainFlow.classList.add('hidden');
+      settingsOpenedFromAuth = false;
+    } else {
+      showChatPage();
+    }
   });
-  closeConnectorsBtn.addEventListener('click', () => connectorsPanel.classList.add('hidden'));
 
   let connectService = null;
   connectSubmit.addEventListener('click', async () => {
@@ -342,16 +428,7 @@
     }
   });
 
-  settingsBtn.addEventListener('click', async () => {
-    const s = await getStoredSettings();
-    backendUrlEl.value = s.backendUrl;
-    apiKeyEl.value = s.apiKey;
-    llmProviderEl.value = s.llmProvider;
-    llmApiKeyEl.value = s.llmApiKey;
-    llmModelEl.value = s.llmModel;
-    settingsPanel.classList.remove('hidden');
-  });
-  closeSettingsBtn.addEventListener('click', () => settingsPanel.classList.add('hidden'));
+  settingsBtn.addEventListener('click', () => showSettingsPage(false));
   saveSettingsBtn.addEventListener('click', async () => {
     const provider = llmProviderEl.value;
     await chrome.storage.local.set({
@@ -362,7 +439,7 @@
       llmModel: llmModelEl.value.trim() || DEFAULT_MODELS[provider],
     });
     setStatus('Settings saved.');
-    settingsPanel.classList.add('hidden');
+    await applyAuthState();
   });
 
   async function sendMessage() {
