@@ -49,12 +49,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return;
   }
   (async () => {
-    const tabs = await chrome.tabs.query({});
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     const contextTabs = [];
     let totalChars = 0;
 
     for (const tab of tabs.slice(0, MAX_TABS)) {
-      if (!tab.id || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://')) continue;
+      if (!tab.id || (!tab.url && !tab.pendingUrl) || (tab.url || tab.pendingUrl).startsWith('chrome://') || (tab.url || tab.pendingUrl).startsWith('edge://')) continue;
       try {
         const results = await chrome.scripting.executeScript({
           target: { tabId: tab.id },
@@ -69,11 +69,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         const len = (truncated ?? '').length;
         if (totalChars + len > MAX_TOTAL_CHARS) break;
         totalChars += len;
-        const header = `## Tab: ${tab.title || 'Untitled'} (${tab.url})\n\n`;
+        const header = `## Tab: ${tab.title || 'Untitled'} (${tab.url})${tab.active ? ' (ACTIVE TAB)' : ''}\n\n`;
         contextTabs.push({
           id: tab.id,
           url: tab.url,
           title: tab.title || '',
+          active: tab.active,
           markdown: truncated ? header + truncated : null,
         });
       } catch (_) {
@@ -81,6 +82,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           id: tab.id,
           url: tab.url,
           title: tab.title || '',
+          active: tab.active,
           markdown: null,
         });
       }
