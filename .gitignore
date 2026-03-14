@@ -6,6 +6,18 @@ backend/dist/
 backend/data/
 *.tsbuildinfo
 
+# Python (backend_py)
+backend_py/.venv/
+backend_py/venv/
+backend_py/__pycache__/
+backend_py/**/__pycache__/
+backend_py/*.py[cod]
+backend_py/**/*.py[cod]
+backend_py/.eggs/
+backend_py/*.egg-info/
+backend_py/.pytest_cache/
+backend_py/data/
+
 # Environment and secrets (never commit keys)
 .env
 .env.local
