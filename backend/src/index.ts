@@ -1,18 +1,23 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import jwt from '@fastify/jwt';
 import websocket from '@fastify/websocket';
 import { config } from './config.js';
 import { checkRateLimit } from './rateLimit.js';
 import { createMcpClient } from './mcp.js';
 import { runChatStream } from './orchestrator.js';
 import { DEFAULT_MODELS, type LLMOptions } from './llm/index.js';
+import { resolveAuth } from './auth.js';
+import { registerAuthRoutes } from './routes/auth.js';
+import { registerConnectorRoutes } from './routes/connectors.js';
+import { registerGoogleAuthRoutes } from './routes/google-auth.js';
 import type { ClientMessage, ServerMessage } from './types.js';
 
 function send(socket: { send: (data: string) => void }, msg: ServerMessage): void {
   socket.send(JSON.stringify(msg));
 }
 
-function validateAuth(token: string): boolean {
+function validateLegacyApiKey(token: string): boolean {
   return !!config.backendApiKey && token === config.backendApiKey;
 }
 
@@ -23,18 +28,29 @@ async function main() {
     origin: config.allowedOrigins.includes('*') ? true : config.allowedOrigins,
     credentials: true,
   });
+  await fastify.register(jwt, { secret: config.jwtSecret });
   await fastify.register(websocket);
+
+  await registerAuthRoutes(fastify);
+  await registerConnectorRoutes(fastify);
+  await registerGoogleAuthRoutes(fastify);
 
   fastify.get('/health', async (_req, reply) => {
     return reply.send({ status: 'ok' });
   });
 
+  fastify.get('/users/me', async (req, reply) => {
+    const { user } = await resolveAuth(req, reply);
+    if (!user) return reply.status(401).send({ error: 'unauthorized', message: 'Sign in required' });
+    return reply.send({ user });
+  });
+
   fastify.post<{
     Body: { id?: string; message?: string; context?: unknown; allow_tools?: boolean; provider?: LLMOptions['provider']; api_key?: string; model?: string };
   }>('/v1/chat', async (req, reply) => {
-    const token = (req.headers['x-api-key'] as string) ?? (req.headers.authorization?.replace(/^Bearer\s+/i, '') ?? '');
-    if (!validateAuth(token)) {
-      return reply.status(401).send({ error: 'unauthorized', message: 'Invalid or missing token' });
+    const auth = await resolveAuth(req, reply);
+    if (!auth.token) {
+      return reply.status(401).send({ error: 'unauthorized', message: 'Sign in or provide a valid API key' });
     }
     const { message, context, allow_tools, provider, api_key, model } = req.body ?? {};
     if (!message || typeof message !== 'string') {
@@ -43,7 +59,7 @@ async function main() {
     if (message.length > config.maxMessageLength) {
       return reply.status(400).send({ error: 'bad_request', message: `Message exceeds ${config.maxMessageLength} characters` });
     }
-    const rl = checkRateLimit(token, config.rateLimitRequestsPerMinute);
+    const rl = checkRateLimit(auth.token, config.rateLimitRequestsPerMinute);
     if (!rl.allowed) {
       return reply.status(429).header('Retry-After', String(rl.retryAfter ?? 60)).send({ error: 'rate_limited', message: 'Too many requests' });
     }
@@ -60,7 +76,7 @@ async function main() {
       api_key: (api_key as string)?.trim() ?? config.anthropicApiKey,
       model: (model as string)?.trim() ?? DEFAULT_MODELS.claude,
     };
-    const mcpClient = createMcpClient();
+    const mcpClient = await createMcpClient(auth.user?.id);
     try {
       await runChatStream(
         message,
@@ -81,22 +97,39 @@ async function main() {
 
   fastify.get('/ws', { websocket: true }, (socket, req) => {
     const url = new URL(req.url ?? '', `http://${req.headers.host}`);
-    const token = url.searchParams.get('token') ?? '';
-    let authenticated = validateAuth(token);
-    if (authenticated) {
-      send(socket, { type: 'auth_ok' });
-    } else {
-      send(socket, { type: 'error', code: 'unauthorized', message: 'Invalid or missing token' });
-      socket.close();
-      return;
+    let token = url.searchParams.get('token') ?? '';
+
+    let wsUserId: string | null = null;
+    async function verifyToken(t: string): Promise<boolean> {
+      if (!t) return false;
+      if (validateLegacyApiKey(t)) return true;
+      try {
+        const decoded = await fastify.jwt.verify(t) as { userId?: string };
+        if (decoded?.userId) wsUserId = decoded.userId;
+        return true;
+      } catch {
+        return false;
+      }
     }
 
-    const apiKey = token || 'anonymous';
+    const authPromise = (async () => {
+      const ok = await verifyToken(token);
+      if (!ok) {
+        send(socket, { type: 'error', code: 'unauthorized', message: 'Sign in or provide a valid API key' });
+        socket.close();
+        return false;
+      }
+      send(socket, { type: 'auth_ok' });
+      return true;
+    })();
+
     socket.on('message', async (raw: Buffer) => {
       try {
         const msg = JSON.parse(raw.toString()) as ClientMessage;
         if (msg.type === 'auth') {
-          if (validateAuth(msg.token)) {
+          const ok = await verifyToken(msg.token);
+          if (ok) {
+            token = msg.token;
             send(socket, { type: 'auth_ok' });
           } else {
             send(socket, { type: 'error', code: 'unauthorized', message: 'Invalid token' });
@@ -104,12 +137,14 @@ async function main() {
           }
           return;
         }
+        const authenticated = await authPromise;
+        if (!authenticated) return;
         if (msg.type === 'ping') {
           send(socket, { type: 'pong' });
           return;
         }
         if (msg.type === 'chat') {
-          const rl = checkRateLimit(apiKey, config.rateLimitRequestsPerMinute);
+          const rl = checkRateLimit(token || 'anonymous', config.rateLimitRequestsPerMinute);
           if (!rl.allowed) {
             send(socket, {
               type: 'error',
@@ -135,7 +170,7 @@ async function main() {
             api_key: msg.api_key?.trim() ?? config.anthropicApiKey,
             model: msg.model?.trim() ?? DEFAULT_MODELS[msg.provider ?? 'claude'],
           };
-          const mcpClient = createMcpClient();
+          const mcpClient = await createMcpClient(wsUserId);
           try {
             await runChatStream(
               msg.message,

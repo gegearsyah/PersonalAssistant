@@ -5,7 +5,7 @@ import type { ServerMessage } from './types.js';
 import { getAdapter, DEFAULT_MODELS, type LLMOptions, type UnifiedTool } from './llm/index.js';
 
 function buildSystemPrompt(context?: ContextPayload): string {
-  const base = `You are a helpful assistant with access to the user's browser context when provided. Use the tab content (markdown) to answer questions. Be concise and accurate.`;
+  const base = `You are a helpful personal assistant. You have access to the user's browser context (open tabs as markdown) when provided. When the user has connected Google, you can create and list calendar events using the create_calendar_event and list_calendar_events tools. Use ISO 8601 for event times (e.g. 2025-03-15T14:00:00Z). Be concise and accurate.`;
   if (!context?.tabs?.length && !context?.closed_tabs?.length) return base;
   const parts = [base];
   if (context.tabs?.length) {

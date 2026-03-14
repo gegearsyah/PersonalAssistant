@@ -10,8 +10,34 @@
   <div class="container">
     <header class="header">
       <h1>Personal Assistant</h1>
-      <button type="button" id="settings-btn" class="icon-btn" title="Settings">⚙️</button>
+      <span id="user-label" class="user-label"></span>
+      <div class="header-actions">
+        <button type="button" id="connectors-btn" class="icon-btn hidden" title="Connectors">🔌</button>
+        <button type="button" id="settings-btn" class="icon-btn" title="Settings">⚙️</button>
+        <button type="button" id="logout-btn" class="icon-btn hidden" title="Log out">Log out</button>
+      </div>
     </header>
+
+    <div id="auth-view" class="auth-view hidden">
+      <p class="auth-title">Sign in to your account</p>
+      <label>Backend URL <input type="text" id="auth-backend-url" placeholder="http://localhost:3000" /></label>
+      <label>Email <input type="email" id="auth-email" placeholder="you@example.com" /></label>
+      <label>Password <input type="password" id="auth-password" placeholder="••••••••" /></label>
+      <div class="auth-actions">
+        <button type="button" id="auth-login">Sign in</button>
+        <button type="button" id="auth-register">Create account</button>
+      </div>
+      <p class="auth-or">— or use backend API key in Settings —</p>
+    </div>
+
+    <div id="connectors-panel" class="settings-panel hidden">
+      <h3 class="settings-section">Your connectors</h3>
+      <p class="connectors-hint">Connect your accounts. The assistant can use these when you chat.</p>
+      <div id="connectors-list" class="connectors-list"></div>
+      <div class="settings-actions">
+        <button type="button" id="close-connectors">Close</button>
+      </div>
+    </div>
 
     <div id="settings-panel" class="settings-panel hidden">
       <h3 class="settings-section">Backend</h3>
@@ -46,13 +72,17 @@
       </div>
     </div>
 
-    <div class="chat-area">
+    <div id="chat-view" class="chat-area">
       <div id="messages" class="messages"></div>
       <div class="input-row">
         <label class="context-toggle">
           <input type="checkbox" id="include-context" checked />
           Include tab context
         </label>
+        <div class="connectors-info" id="connectors-info" title="Tools (connectors) come from MCP servers configured in the backend">
+          <span class="connectors-label">Tools</span>
+          <span class="connectors-detail" id="connectors-detail">Demo (echo, add)</span>
+        </div>
         <div class="input-wrap">
           <textarea id="input" rows="2" placeholder="Type a message..." maxlength="32000"></textarea>
           <button type="button" id="send-btn" class="send-btn">Send</button>
@@ -61,6 +91,18 @@
     </div>
 
     <div id="status" class="status"></div>
+  </div>
+
+  <div id="connect-modal" class="modal hidden">
+    <div class="modal-content">
+      <h4 id="connect-modal-title">Connect</h4>
+      <label id="connect-label"><span id="connect-label-text">API Key</span> <input type="password" id="connect-api-key" placeholder="Paste your API key" /></label>
+      <p id="connect-hint" class="connect-hint hidden"></p>
+      <div class="modal-actions">
+        <button type="button" id="connect-submit">Connect</button>
+        <button type="button" id="connect-cancel">Cancel</button>
+      </div>
+    </div>
   </div>
   <script src="popup.js"></script>
 </body>

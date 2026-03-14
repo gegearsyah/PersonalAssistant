@@ -25,10 +25,24 @@ body {
   border-bottom: 1px solid #e5e5e5;
   background: #fafafa;
 }
+.header {
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .header h1 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+}
+.user-label {
+  font-size: 12px;
+  color: #666;
+  margin-left: auto;
+  margin-right: 8px;
+}
+.header-actions {
+  display: flex;
+  gap: 4px;
 }
 .icon-btn {
   background: none;
@@ -46,9 +60,113 @@ body {
   border-bottom: 1px solid #e5e5e5;
   background: #f9f9f9;
 }
-.settings-panel.hidden {
+.settings-panel.hidden,
+.auth-view.hidden {
   display: none;
 }
+.auth-view {
+  padding: 20px 16px;
+}
+.auth-title {
+  margin: 0 0 16px;
+  font-weight: 600;
+}
+.auth-view label {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+.auth-view input {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+.auth-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.auth-actions button {
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+}
+.auth-actions button:first-child {
+  background: #1a73e8;
+  color: #fff;
+}
+.auth-or {
+  margin: 16px 0 0;
+  font-size: 12px;
+  color: #888;
+  text-align: center;
+}
+.connectors-hint {
+  font-size: 12px;
+  color: #666;
+  margin: 0 0 12px;
+}
+.connectors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.connector-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+.connector-item.connected {
+  border-color: #34a853;
+  background: #f0f9f0;
+}
+.connector-info strong { display: block; font-size: 14px; }
+.connector-info span { font-size: 12px; color: #666; }
+.connector-item button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+.connector-item.connected button {
+  border-color: #c5221f;
+  color: #c5221f;
+}
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal.hidden { display: none; }
+.modal-content {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 320px;
+}
+.modal-content h4 { margin: 0 0 12px; }
+.modal-content label { display: block; margin-bottom: 10px; font-size: 13px; }
+.modal-content input { width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 6px; }
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+.modal-actions button { padding: 8px 14px; border-radius: 6px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+.modal-actions button:first-child { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+.connect-hint { font-size: 11px; color: #666; margin: -6px 0 0; }
+.connect-hint.hidden { display: none; }
 .settings-section {
   margin: 14px 0 8px;
   font-size: 12px;
@@ -147,13 +265,31 @@ body {
 }
 .context-toggle {
   display: block;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   font-size: 12px;
   color: #666;
   cursor: pointer;
 }
 .context-toggle input {
   margin-right: 6px;
+}
+.connectors-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #555;
+  cursor: help;
+}
+.connectors-label {
+  font-weight: 500;
+}
+.connectors-detail {
+  color: #777;
 }
 .input-wrap {
   display: flex;

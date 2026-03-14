@@ -17,6 +17,7 @@ See **[docs/ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md](docs/ARCHITECTURE_AND_IMPLE
 | [docs/ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md](docs/ARCHITECTURE_AND_IMPLEMENTATION_PLAN.md) | Architecture, data flow, auth, context extraction, security, tech stack, MCP, permissions, rate limiting. |
 | [docs/API_CONTRACTS_AND_PATTERNS.md](docs/API_CONTRACTS_AND_PATTERNS.md) | WebSocket/REST contracts, TypeScript types, backend and extension code patterns. |
 | [docs/PERMISSIONS_REFERENCE.md](docs/PERMISSIONS_REFERENCE.md) | Extension permissions summary and alternatives. |
+| [docs/CONNECTORS.md](docs/CONNECTORS.md) | Why there are no “connectors” like Claude.ai, and how to add real ones (MCP). |
 | [docs/README.md](docs/README.md) | Doc index and suggested implementation order. |
 
 ## Project structure (target)
@@ -42,15 +43,14 @@ PersonalAssistant/
 ## Quick start
 
 1. **Backend**
-   - `cd backend`, copy `.env.example` to `.env`, set `ANTHROPIC_API_KEY` and `BACKEND_API_KEY`.
-   - Run `npm install && npm run dev`. Server runs at `http://localhost:3000`.
+   - `cd backend`, copy `.env.example` to `.env`, set `BACKEND_API_KEY` and `JWT_SECRET` (and optionally `ANTHROPIC_API_KEY`).
+   - Run `npm install && npm run dev`. Server runs at `http://localhost:3000`. User data and connectors are stored in `backend/data/`.
 
 2. **Extension**
    - In Chrome go to `chrome://extensions`, enable "Developer mode", click "Load unpacked", select the `extension` folder.
-   - Open the extension popup → Settings → set **Backend** URL and API key, then **LLM** provider (Claude / OpenAI / Groq), your **LLM API Key**, and **Model** → Save.
-
-3. **Use**
-   - Open the popup, optionally check "Include tab context", type a message and Send. Responses stream from Claude; MCP tools (mock echo/add) are available.
+   - **Sign in:** Open the popup → enter Backend URL, email, password → "Create account" or "Sign in". (Or use **Settings** to set a Backend API key and skip sign-in.)
+   - In **Settings** set **LLM** provider and API key. Use the **Connectors** button (when signed in) to connect your Notion, Google Drive, or Gmail (API keys stored per user).
+   - Type a message and Send; responses stream from your chosen LLM.
 
 ## Prerequisites
 
